@@ -28,12 +28,6 @@ fn main() -> AnyResult<()> {
 
     println!("成功读取文件，大小: {} 字节", data.len());
 
-    let file_bak_path = format!("{file_path}.bak");
-
-    fs::write(&file_bak_path, &data).map_err(|e| format!("写入失败: {e}"))?;
-
-    println!("成功备份原exe为: {file_bak_path}");
-
     let patches = [
         Patch {
             name: "第一个特征码",
@@ -47,10 +41,14 @@ fn main() -> AnyResult<()> {
         },
     ];
 
+    let mut result = true;
     for p in patches.iter() {
         match apply_patch(p, &mut data) {
             Ok(off) => println!("{}已替换，偏移位置: 0x{:X}", p.name, off),
-            Err(e) => eprintln!("{}失败：{e}", p.name),
+            Err(e) => {
+                result = false;
+                eprintln!("{}失败：{e}", p.name)
+            }
         }
     }
 
@@ -60,7 +58,15 @@ fn main() -> AnyResult<()> {
         .open(file_path)?
         .write_all(&data)?;
 
-    println!("文件修改完成！");
+    if result {
+        let file_bak_path = format!("{file_path}.bak");
+
+        println!("文件修改完成！");
+
+        fs::write(&file_bak_path, &data).map_err(|e| format!("写入失败: {e}"))?;
+
+        println!("成功备份原exe为: {file_bak_path}");
+    }
 
     press_enter_to_continue();
     Ok(())
